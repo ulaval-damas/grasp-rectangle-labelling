@@ -104,6 +104,7 @@ class LabelTool():
         self.rectangle_listbox.bind('<<ListboxSelect>>', self.rectangle_listbox_onselect)
         self.rectangle_delete_button = Button(self.frame, text='Delete', command=self.delete_rectangle)
         self.rectangle_delete_button.grid(row=3, column=2, sticky=W+E+N)
+        self.parent.bind("x", self.delete_rectangle)
         self.rectangle_clear_button = Button(self.frame, text='ClearAll', command=self.clear_rectangle)
         self.rectangle_clear_button.grid(row=4, column=2, sticky=W+E+N)
 
@@ -305,7 +306,7 @@ class LabelTool():
                 self.vl = self.main_panel.create_line(x2, y2, x3, y3, width=2, fill=COLORS[1])
                 
     
-    def cancel_rectangle(self, event):
+    def cancel_rectangle(self, event=None):
         if self.click_state > 1:
             if self.hl:
                 self.main_panel.delete(self.hl)
@@ -313,7 +314,7 @@ class LabelTool():
                 self.main_panel.delete(self.vl)
             self.click_state = 1
 
-    def delete_rectangle(self):
+    def delete_rectangle(self, event=None):
         sel = self.rectangle_listbox.curselection()
         if len(sel) != 1 :
             return
