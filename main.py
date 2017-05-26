@@ -22,8 +22,9 @@ COLORS = ['red', 'blue', 'yellow', 'pink', 'cyan', 'green', 'black']
 SIZE = 256, 256
 
 def complete_rectangle_with_projection_point(x1, y1, x2, y2, xr, yr):
-    m = (y2 - y1) / (x2 - x1)
-    m_perp = -1/m
+    with np.errstate(divide='ignore', invalid='ignore'):
+        m = np.true_divide( y2 - y1, x2 - x1)
+        m_perp = np.true_divide(-1, m)
     
     if m == 0:
         x3 = x2
@@ -77,6 +78,8 @@ class LabelTool():
         self.imagename = ''
         self.labelfilename = ''
         self.tkimg = None
+        self.listbox_index = 0
+        self.listbox_index_cycle = False
 
         # initialize mouse state
         self.STATE = {}
@@ -84,8 +87,7 @@ class LabelTool():
         self.STATE['x'], self.STATE['y'] = 0, 0
 
         # reference to bbox
-        self.grasp_rectangle_ids_list = []
-        self.grasp_rectangle_ids = None
+        self.rectangle_ids_list = []
         self.bboxList = []
         self.hl = None
         self.vl = None
@@ -104,7 +106,7 @@ class LabelTool():
         self.mainPanel.bind("<Button-1>", self.mouseClick)
         self.mainPanel.bind("<Motion>", self.mouseMove)
         self.parent.bind("<Escape>", self.cancelBBox)  # press <Espace> to cancel current bbox
-        self.parent.bind("s", self.cancelBBox)
+        self.parent.bind("s", self.saveImage)
         self.parent.bind("a", self.prevImage) # press 'a' to go backforward
         self.parent.bind("d", self.nextImage) # press 'd' to go forward
         self.mainPanel.grid(row = 1, column = 1, rowspan = 4, sticky = W+N)
@@ -112,7 +114,7 @@ class LabelTool():
         # showing bbox info & delete bbox
         self.lb1 = Label(self.frame, text = 'Bounding boxes:')
         self.lb1.grid(row = 1, column = 2,  sticky = W+N)
-        self.listbox = Listbox(self.frame, width = 40, height = 12)
+        self.listbox = Listbox(self.frame, width = 50, height = 12)
         self.listbox.grid(row = 2, column = 2, sticky = N)
         self.listbox.bind('<<ListboxSelect>>', self.listbox_onselect)
         self.btnDel = Button(self.frame, text = 'Delete', command = self.delBBox)
@@ -157,43 +159,62 @@ class LabelTool():
 ##        self.setImage()
 ##        self.loadDir()
     
-    def plot_rectangle(self, x1, y1, x2, y2, x3, y3, x4, y4, width=2):
-        if self.grasp_rectangle_ids:
-            for i in self.grasp_rectangle_ids:
-                self.mainPanel.delete(i)
-        
+    def erase_rectangle(self, ids):
+        for i in ids:
+            self.mainPanel.delete(i)
+    
+    def plot_rectangle(self, x1, y1, x2, y2, x3, y3, x4, y4, width=2, add_ids=True):        
         hl1 = self.mainPanel.create_line(x1, y1, x2, y2, width=width, fill=COLORS[0])
         hl2 = self.mainPanel.create_line(x2, y2, x3, y3, width=width, fill=COLORS[1])
         hl3 = self.mainPanel.create_line(x3, y3, x4, y4, width=width, fill=COLORS[0])
         hl4 = self.mainPanel.create_line(x4, y4, x1, y1, width=width, fill=COLORS[1])
-        self.grasp_rectangle_ids = (hl1, hl2, hl3, hl4)
-        self.grasp_rectangle_ids_list.append(self.grasp_rectangle_ids)
-        self.grasp_rectangle_ids = None
+        ids = [hl1, hl2, hl3, hl4]
+        if add_ids:
+            self.rectangle_ids_list.append(ids)
+        
+        return ids
     
     
-    def save_rectangle(self, x1, y1, x2, y2, x3, y3, x4, y4):
+    def append_rectangle(self, x1, y1, x2, y2, x3, y3, x4, y4):
         self.bboxList.append((x1, y1, x2, y2, x3, y3, x4, y4))
         self.listbox.insert(END, '(%d, %d), (%d, %d), (%d, %d), (%d, %d)' %(x1, y1, x2, y2, x3, y3, x4, y4))
-        #self.listbox.itemconfig(len(self.grasp_rectangle_ids_list) - 1, fg=COLORS[(len(self.grasp_rectangle_ids_list) - 1) % len(COLORS)])
+    
     
     def listbox_onselect(self, event):
+        if len(self.rectangle_ids_list) == 0:
+            return
+        
+        prev_index = self.listbox_index
+        self.erase_rectangle(self.rectangle_ids_list[prev_index])
+        rectangle = self.bboxList[prev_index]
+        ids = self.plot_rectangle(*rectangle, width=2, add_ids=False)
+        self.rectangle_ids_list[prev_index] = ids
+        
         w = event.widget
-        index = int(w.curselection()[0])
-        value = w.get(index)
-        print('You selected item %d: "%s"' % (index, value))
+        self.listbox_index = int(w.curselection()[0])
+        index = self.listbox_index
+        self.erase_rectangle(self.rectangle_ids_list[index])
+        rectangle = self.bboxList[index]
+        if index != prev_index:
+            ids = self.plot_rectangle(*rectangle, width=6, add_ids=False)
+            self.listbox_index_cycle = False
+        else:
+            if self.listbox_index_cycle:
+                ids = self.plot_rectangle(*rectangle, width=2, add_ids=False)
+                self.listbox_index_cycle = False
+            else:
+                ids = self.plot_rectangle(*rectangle, width=6, add_ids=False)
+                self.listbox_index_cycle = True
+        self.rectangle_ids_list[index] = ids
+        
 
     def loadDir(self, dbg = False):
-        if not dbg:
-            s = self.entry.get()
-            self.parent.focus()
-            self.category = int(s)
-        else:
-            s = r'D:\workspace\python\labelGUI'
-##        if not os.path.isdir(s):
-##            tkMessageBox.showerror("Error!", message = "The specified dir doesn't exist!")
-##            return
+        #pdb.set_trace()
+        self.category = self.entry.get()
+        self.parent.focus()
+
         # get image list
-        self.imageDir = os.path.join(r'./Images', '%03d' %(self.category))
+        self.imageDir = os.path.join('Images', self.category)
         self.imageList = glob.glob(os.path.join(self.imageDir, '*.jpg'))
         if len(self.imageList) == 0:
             print('No .jpg images found in the specified dir!')
@@ -204,30 +225,29 @@ class LabelTool():
         self.total = len(self.imageList)
 
          # set up output dir
-        self.outDir = os.path.join(r'./Labels', '%03d' %(self.category))
-        if not os.path.exists(self.outDir):
-            os.mkdir(self.outDir)
+        self.outDir = os.path.join('Labels', self.category)
+        os.makedirs(self.outDir, exist_ok=True)
 
         # load example bboxes
-        self.egDir = os.path.join(r'./Examples', '%03d' %(self.category))
+        self.egDir = os.path.join('Examples', self.category)
         if not os.path.exists(self.egDir):
-            return
-        filelist = glob.glob(os.path.join(self.egDir, '*.JPEG'))
-        self.tmp = []
-        self.egList = []
-        random.shuffle(filelist)
-        for (i, f) in enumerate(filelist):
-            if i == 3:
-                break
-            im = Image.open(f)
-            r = min(SIZE[0] / im.size[0], SIZE[1] / im.size[1])
-            new_size = int(r * im.size[0]), int(r * im.size[1])
-            self.tmp.append(im.resize(new_size, Image.ANTIALIAS))
-            self.egList.append(ImageTk.PhotoImage(self.tmp[-1]))
-            self.egLabels[i].config(image = self.egList[-1], width = SIZE[0], height = SIZE[1])
+            
+            filelist = glob.glob(os.path.join(self.egDir, '*.JPEG'))
+            self.tmp = []
+            self.egList = []
+            random.shuffle(filelist)
+            for (i, f) in enumerate(filelist):
+                if i == 3:
+                    break
+                im = Image.open(f)
+                r = min(SIZE[0] / im.size[0], SIZE[1] / im.size[1])
+                new_size = int(r * im.size[0]), int(r * im.size[1])
+                self.tmp.append(im.resize(new_size, Image.ANTIALIAS))
+                self.egList.append(ImageTk.PhotoImage(self.tmp[-1]))
+                self.egLabels[i].config(image = self.egList[-1], width = SIZE[0], height = SIZE[1])
 
         self.loadImage()
-        print('%d images loaded from %s' %(self.total, s))
+        print("{} images loaded from {}".format(self.total, self.category))
 
     def loadImage(self):
         # load image
@@ -243,20 +263,15 @@ class LabelTool():
         self.imagename = os.path.split(imagepath)[-1].split('.')[0]
         labelname = self.imagename + '.txt'
         self.labelfilename = os.path.join(self.outDir, labelname)
-        bbox_cnt = 0
         if os.path.exists(self.labelfilename):
             with open(self.labelfilename) as f:
                 for (i, line) in enumerate(f):
-                    if i == 0:
-                        bbox_cnt = int(line.strip())
-                        continue
-                    tmp = [float(t.strip()) for t in line.split()]
-                    self.save_rectangle(*tmp)
-                    self.plot_rectangle(*tmp)
+                    rectangle = [float(t.strip()) for t in line.split()]
+                    self.append_rectangle(*rectangle)
+                    self.plot_rectangle(*rectangle)
 
-    def saveImage(self):
+    def saveImage(self, event=None):
         with open(self.labelfilename, 'w') as f:
-            f.write('%d\n' %len(self.bboxList))
             for bbox in self.bboxList:
                 f.write(' '.join(map(str, bbox)) + '\n')
         print('Image No. %d saved' %(self.cur))
@@ -272,13 +287,17 @@ class LabelTool():
         elif self.STATE['click'] == 3:
             xr = event.x
             yr = event.y
-            x1 = self.STATE['x1']
-            y1 = self.STATE['y1']
-            x2 = self.STATE['x2']
-            y2 = self.STATE['y2']
+            x1 = int(np.round(self.STATE['x1']))
+            y1 = int(np.round(self.STATE['y1']))
+            x2 = int(np.round(self.STATE['x2']))
+            y2 = int(np.round(self.STATE['y2']))
             x3, y3, x4, y4 = complete_rectangle_with_projection_point(x1, y1, x2, y2, xr, yr)
+            x3 = int(np.round(x3))
+            y3 = int(np.round(y3))
+            x4 = int(np.round(x4))
+            y4 = int(np.round(y4))
             self.plot_rectangle(x1, y1, x2, y2, x3, y3, x4, y4)
-            self.save_rectangle(x1, y1, x2, y2, x3, y3, x4, y4)
+            self.append_rectangle(x1, y1, x2, y2, x3, y3, x4, y4)
             self.STATE['click'] = 1
         else:
             self.STATE['click'] = 1
@@ -311,44 +330,50 @@ class LabelTool():
     
     def cancelBBox(self, event):
         if self.STATE['click'] > 1:
-            if self.grasp_rectangle_ids:
-                for i in self.grasp_rectangle_ids:
-                    self.mainPanel.delete(i)
-                self.grasp_rectangle_ids = None
-                self.STATE['click'] = 1
+            if self.hl:
+                self.mainPanel.delete(self.hl)
+            if self.vl:
+                self.mainPanel.delete(self.vl)
+            self.STATE['click'] = 1
 
     def delBBox(self):
         sel = self.listbox.curselection()
         if len(sel) != 1 :
             return
         idx = int(sel[0])
-        for i in self.grasp_rectangle_ids_list[idx]:
-            self.mainPanel.delete(i)
-        self.grasp_rectangle_ids_list.pop(idx)
+        self.erase_rectangle(self.rectangle_ids_list[idx])
+        self.rectangle_ids_list.pop(idx)
         self.bboxList.pop(idx)
         self.listbox.delete(idx)
+        if self.listbox_index >= idx and not self.listbox_index == 0:
+            self.listbox_index = self.listbox_index - 1
 
 
     def clearBBox(self):
-        for idx in range(len(self.grasp_rectangle_ids_list)):
-            for i in self.grasp_rectangle_ids_list[idx]:
+        for idx in range(len(self.rectangle_ids_list)):
+            for i in self.rectangle_ids_list[idx]:
                 self.mainPanel.delete(i)
         self.listbox.delete(0, len(self.bboxList))
-        self.grasp_rectangle_ids_list = []
+        self.rectangle_ids_list = []
         self.bboxList = []
+        self.listbox_index = 0
 
 
     def prevImage(self, event = None):
         self.saveImage()
         if self.cur > 1:
             self.cur -= 1
-            self.loadImage()
+        else:
+            self.cur = self.total
+        self.loadImage()
 
     def nextImage(self, event = None):
         self.saveImage()
         if self.cur < self.total:
             self.cur += 1
-            self.loadImage()
+        else:
+            self.cur = 1
+        self.loadImage()
 
     def gotoImage(self):
         idx = int(self.idxEntry.get())
