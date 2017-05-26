@@ -58,10 +58,10 @@ class LabelTool():
         self.example_list = []
         self.label_base_directory = "Labels"
         self.label_directory = ""
+        self.label_filename = ""
         self.cur = 0
         self.total = 0
         self.category = ""
-        self.image_filename = ""
         self.tkimg = None
         self.rectangle_listbox_index = 0
         self.rectangle_listbox_index_cycle = False
@@ -94,7 +94,7 @@ class LabelTool():
         self.parent.bind("s", self.save_image)
         self.parent.bind("a", self.previous_image) # press 'a' to go backforward
         self.parent.bind("d", self.next_image) # press 'd' to go forward
-        self.main_panel.grid(row=1, column=1, rowspan=4, sticky=W+N)
+        self.main_panel.grid(row=1, column=1, rowspan=5, sticky=W+N)
 
         # showing bbox info & delete bbox
         self.rectangle_label = Label(self.frame, text='Rectangles:')
@@ -107,10 +107,12 @@ class LabelTool():
         self.parent.bind("x", self.delete_rectangle)
         self.rectangle_clear_button = Button(self.frame, text='ClearAll', command=self.clear_rectangle)
         self.rectangle_clear_button.grid(row=4, column=2, sticky=W+E+N)
+        self.rectangle_print_button = Button(self.frame, text='Print', command=self.print_main_panel)
+        self.rectangle_print_button.grid(row=5, column=2, sticky=W+E+N)
 
         # control panel for image navigation
         self.navigation_control_panel = Frame(self.frame)
-        self.navigation_control_panel.grid(row=5, column=1, columnspan=2, sticky=W+E)
+        self.navigation_control_panel.grid(row=6, column=1, columnspan=2, sticky=W+E)
         self.previous_image_button = Button(self.navigation_control_panel, text='<< Prev', width=10, command=self.previous_image)
         self.previous_image_button.pack(side=LEFT, padx=5, pady=3)
         self.next_image_button = Button(self.navigation_control_panel, text='Next >>', width=10, command=self.next_image)
@@ -139,7 +141,7 @@ class LabelTool():
         self.mouse_position_label.pack(side=RIGHT)
 
         self.frame.columnconfigure(1, weight=1)
-        self.frame.rowconfigure(4, weight=1)
+        self.frame.rowconfigure(5, weight=1)
     
     def erase_rectangle(self, ids):
         for i in ids:
@@ -238,18 +240,21 @@ class LabelTool():
         self.img = Image.open(imagepath)
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.main_panel.config(
-            width=max(self.tkimg.width(), 400),
-            height=max(self.tkimg.height(), 400))
+            #width=max(self.tkimg.width(), 400),
+            #height=max(self.tkimg.height(), 400)
+            width=self.tkimg.width(),
+            height=self.tkimg.height()
+        )
         self.main_panel.create_image(0, 0, image=self.tkimg, anchor=NW)
         self.image_progression_label.config(text="%04d/%04d" %(self.cur, self.total))
 
         # load labels
         self.clear_rectangle()
         image_name = os.path.split(imagepath)[-1].split('.')[0]
-        labelname = image_name + '.txt'
-        self.image_filename = os.path.join(self.label_directory, labelname)
-        if os.path.exists(self.image_filename):
-            with open(self.image_filename) as f:
+        label_filename = image_name + '.txt'
+        self.label_filename = os.path.join(self.label_directory, label_filename)
+        if os.path.exists(self.label_filename):
+            with open(self.label_filename) as f:
                 for (i, line) in enumerate(f):
                     [x1, y1, x2, y2, x3, y3, x4, y4] = [int(t.strip()) for t in line.split()]
                     rectangle = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
@@ -361,12 +366,21 @@ class LabelTool():
             self.load_image()
 
     def save_image(self, event=None):
-        with open(self.image_filename, 'w') as f:
+        with open(self.label_filename, 'w') as f:
             for rectangle in self.rectangle_coordinates_list:
                 [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] = rectangle
                 entry = "{} {} {} {} {} {} {} {}\n".format(x1, y1, x2, y2, x3, y3, x4, y4)
                 f.write(entry)
         print('Image No. %d saved' %(self.cur))
+    
+    def print_main_panel(self, event=None):
+        self.main_panel.update()
+        imagepath = self.image_list[self.cur - 1]
+        image_name = os.path.split(imagepath)[-1].split('.')[0]
+        labeled_image_filename = os.path.join(self.label_directory, image_name + '.eps')
+        print("Printing image to {}".format(labeled_image_filename))
+        self.main_panel.postscript(file=labeled_image_filename, colormode="color")
+        
 
 
 if __name__ == '__main__':
