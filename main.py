@@ -6,6 +6,7 @@ import glob
 import random
 import numpy as np
 import parse
+import io
 
 # colors for the bboxes
 COLORS = ['red', 'blue']
@@ -212,7 +213,7 @@ class LabelTool():
 
         # load example bboxes
         self.example_directory = os.path.join(self.example_base_directory, self.category)
-        if not os.path.exists(self.example_directory):
+        if os.path.exists(self.example_directory):
             
             filelist = glob.glob(os.path.join(self.example_directory, '*.jpg'))
             self.tmp = []
@@ -377,9 +378,11 @@ class LabelTool():
         self.main_panel.update()
         imagepath = self.image_list[self.cur - 1]
         image_name = os.path.split(imagepath)[-1].split('.')[0]
-        labeled_image_filename = os.path.join(self.label_directory, image_name + '.eps')
+        labeled_image_filename = os.path.join(self.label_directory, image_name + '_labeled.jpg')
         print("Printing image to {}".format(labeled_image_filename))
-        self.main_panel.postscript(file=labeled_image_filename, colormode="color")
+        ps = self.main_panel.postscript(colormode="color")
+        img = Image.open(io.BytesIO(ps.encode('utf-8')))
+        img.save(labeled_image_filename)
         
 
 
