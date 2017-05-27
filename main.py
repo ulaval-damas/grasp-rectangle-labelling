@@ -95,12 +95,9 @@ class LabelTool():
         self.main_panel = Canvas(self.frame, cursor='tcross')
         self.main_panel.bind("<Button-1>", self.mouse_click)
         self.main_panel.bind("<Motion>", self.mouse_move)
-        # press <Espace> to cancel current bbox
         self.parent.bind("<Escape>", self.cancel_rectangle)
-        self.parent.bind("s", self.save_image)
-        # press 'a' to go backforward
         self.parent.bind("a", self.previous_image)
-        self.parent.bind("d", self.next_image)  # press 'd' to go forward
+        self.parent.bind("d", self.next_image)
         self.main_panel.grid(row=1, column=1, rowspan=5, sticky=W + N)
 
         # showing bbox info & delete bbox
@@ -111,16 +108,21 @@ class LabelTool():
         self.rectangle_listbox.bind(
             '<<ListboxSelect>>',
             self.rectangle_listbox_onselect)
+
         self.rectangle_delete_button = Button(
-            self.frame, text='Delete', command=self.delete_rectangle)
+            self.frame, text='Delete (x)', command=self.delete_rectangle)
         self.rectangle_delete_button.grid(row=3, column=2, sticky=W + E + N)
         self.parent.bind("x", self.delete_rectangle)
+
         self.rectangle_clear_button = Button(
-            self.frame, text='ClearAll', command=self.clear_rectangle)
+            self.frame, text='Save (s)', command=self.save_image)
         self.rectangle_clear_button.grid(row=4, column=2, sticky=W + E + N)
+        self.parent.bind("s", self.save_image)
+
         self.rectangle_print_button = Button(
-            self.frame, text='Print', command=self.print_main_panel)
+            self.frame, text='Print (p)', command=self.print_main_panel)
         self.rectangle_print_button.grid(row=5, column=2, sticky=W + E + N)
+        self.parent.bind("p", self.print_main_panel)
 
         # control panel for image navigation
         self.navigation_control_panel = Frame(self.frame)
@@ -128,13 +130,13 @@ class LabelTool():
             row=6, column=1, columnspan=2, sticky=W + E)
         self.previous_image_button = Button(
             self.navigation_control_panel,
-            text='<< Prev',
+            text='<< Prev (a)',
             width=10,
             command=self.previous_image)
         self.previous_image_button.pack(side=LEFT, padx=5, pady=3)
         self.next_image_button = Button(
             self.navigation_control_panel,
-            text='Next >>',
+            text='Next (d) >>',
             width=10,
             command=self.next_image)
         self.next_image_button.pack(side=LEFT, padx=5, pady=3)
@@ -142,10 +144,10 @@ class LabelTool():
             self.navigation_control_panel,
             text="Progress:     /    ")
         self.image_progression_label.pack(side=LEFT, padx=5)
-        self.go_to_image_label = Label(
+        self.goto_image_label = Label(
             self.navigation_control_panel,
             text="Go to Image No.")
-        self.go_to_image_label.pack(side=LEFT, padx=5)
+        self.goto_image_label.pack(side=LEFT, padx=5)
         self.goto_image_index_entry = Entry(
             self.navigation_control_panel, width=5)
         self.goto_image_index_entry.pack(side=LEFT)
@@ -342,7 +344,7 @@ class LabelTool():
                     self.main_panel.delete(self.hl)
                 if self.vl:
                     self.main_panel.delete(self.vl)
-            if self.click_state == 2:
+            elif self.click_state == 2:
                 if self.hl:
                     self.main_panel.delete(self.hl)
                 self.hl = self.main_panel.create_line(
