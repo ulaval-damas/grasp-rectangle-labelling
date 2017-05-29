@@ -54,17 +54,14 @@ class LabelTool():
 
         # initialize global state
         self.image_base_directory = "Images"
-        self.image_directory = ""
         self.image_list = []
         self.example_base_directory = "Examples"
-        self.example_directory = ""
         self.example_list = []
         self.label_base_directory = "Labels"
-        self.label_directory = ""
         self.label_list = []
         self.cur = 0
         self.total = 0
-        self.category = ""
+        self.user_dataset_directory = ""
         self.tkimg = None
         self.rectangle_listbox_index = 0
         self.rectangle_listbox_index_cycle = False
@@ -234,14 +231,14 @@ class LabelTool():
         self.rectangle_ids_list[index] = ids
 
     def load_directory(self, dbg=False):
-        self.category = self.entry.get()
+        self.user_dataset_directory = self.entry.get()
         self.parent.focus()
 
         # get image list
-        self.image_directory = os.path.join(
-            self.image_base_directory, self.category)
+        image_directory = os.path.join(
+            self.image_base_directory, self.user_dataset_directory)
         self.image_list = glob.glob(
-            os.path.join(self.image_directory, '**', '*.jpg'),
+            os.path.join(image_directory, '**', '*.jpg'),
             recursive=True)
         if len(self.image_list) == 0:
             print('No .jpg images found in the specified dir!')
@@ -261,12 +258,12 @@ class LabelTool():
         self.total = len(self.image_list)
 
         # load example bboxes
-        self.example_directory = os.path.join(
-            self.example_base_directory, self.category)
-        if os.path.exists(self.example_directory):
+        example_directory = os.path.join(
+            self.example_base_directory, self.user_dataset_directory)
+        if os.path.exists(example_directory):
 
             filelist = glob.glob(
-                os.path.join(self.example_directory, '**', '*.jpg'),
+                os.path.join(example_directory, '**', '*.jpg'),
                 recursive=True)
             self.tmp = []
             self.example_list = []
@@ -285,7 +282,9 @@ class LabelTool():
                     #height=SIZE[1]
 
         self.load_image()
-        print("{} images loaded from {}".format(self.total, self.category))
+        print("{} images loaded from {}".format(
+            self.total, 
+            self.user_dataset_directory))
 
     def load_image(self):
         # load image
@@ -307,14 +306,14 @@ class LabelTool():
         # load labels
         self.clear_rectangle()
         label_filename = self.label_list[self.cur - 1]
-        if os.path.exists(label_filename):
-            with open(label_filename) as f:
-                for (i, line) in enumerate(f):
-                    [x1, y1, x2, y2, x3, y3, x4, y4] = [
-                        int(t.strip()) for t in line.split()]
-                    rectangle = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
-                    self.append_rectangle(rectangle)
-                    self.plot_rectangle(rectangle)
+
+        with open(label_filename, 'r') as f:
+            for (i, line) in enumerate(f):
+                [x1, y1, x2, y2, x3, y3, x4, y4] = [
+                    int(t.strip()) for t in line.split()]
+                rectangle = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+                self.append_rectangle(rectangle)
+                self.plot_rectangle(rectangle)
 
     def mouse_click(self, event):
         x = int(np.round(event.x))
