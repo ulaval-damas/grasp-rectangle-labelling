@@ -61,7 +61,7 @@ class LabelTool():
         self.example_list = []
         self.label_base_directory = "Labels"
         self.label_directory = ""
-        self.label_filename = ""
+        self.label_list = []
         self.cur = 0
         self.total = 0
         self.category = ""
@@ -124,6 +124,7 @@ class LabelTool():
             self.frame, text='Print (p)', command=self.print_main_panel)
         self.rectangle_print_button.grid(row=5, column=2, sticky=W + E + N)
         self.parent.bind("p", self.print_main_panel)
+        
 
         # control panel for image navigation
         self.navigation_control_panel = Frame(self.frame)
@@ -172,7 +173,12 @@ class LabelTool():
         self.mouse_position_label = Label(
             self.navigation_control_panel, text='')
         self.mouse_position_label.pack(side=RIGHT)
-
+        
+        # image path
+        self.image_path_label = Label(self.frame, text="")
+        self.image_path_label.grid(row=6, column=0, sticky=W)
+        
+        # frame configuration
         self.frame.columnconfigure(1, weight=1)
         self.frame.rowconfigure(5, weight=1)
 
@@ -235,28 +241,33 @@ class LabelTool():
         self.image_directory = os.path.join(
             self.image_base_directory, self.category)
         self.image_list = glob.glob(
-            os.path.join(
-                self.image_directory,
-                '*.jpg'))
+            os.path.join(self.image_directory, '**', '*.jpg'),
+            recursive=True)
         if len(self.image_list) == 0:
             print('No .jpg images found in the specified dir!')
             return
+        
+        # set label list
+        for imagepath in self.image_list:
+            labelpath = imagepath.split(os.path.sep)
+            labelpath[0] = self.label_base_directory
+            labelpath[-1] = labelpath[-1].replace('.jpg', '.txt')
+            os.makedirs(os.path.sep.join(labelpath[:-1]), exist_ok=True)
+            labelpath = os.path.sep.join(labelpath)
+            self.label_list.append(labelpath)
 
         # default to the 1st image in the collection
         self.cur = 1
         self.total = len(self.image_list)
-
-        # set up output dir
-        self.label_directory = os.path.join(
-            self.label_base_directory, self.category)
-        os.makedirs(self.label_directory, exist_ok=True)
 
         # load example bboxes
         self.example_directory = os.path.join(
             self.example_base_directory, self.category)
         if os.path.exists(self.example_directory):
 
-            filelist = glob.glob(os.path.join(self.example_directory, '*.jpg'))
+            filelist = glob.glob(
+                os.path.join(self.example_directory, '**', '*.jpg'),
+                recursive=True)
             self.tmp = []
             self.example_list = []
             random.shuffle(filelist)
@@ -278,8 +289,9 @@ class LabelTool():
 
     def load_image(self):
         # load image
-        imagepath = self.image_list[self.cur - 1]
-        self.img = Image.open(imagepath)
+        image_filename = self.image_list[self.cur - 1]
+        self.image_path_label.config(text=image_filename)
+        self.img = Image.open(image_filename)
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.main_panel.config(
             #width=max(self.tkimg.width(), 400),
@@ -291,15 +303,12 @@ class LabelTool():
         self.image_progression_label.config(
             text="%04d/%04d" %
             (self.cur, self.total))
-
+        
         # load labels
         self.clear_rectangle()
-        image_name = os.path.split(imagepath)[-1].split('.')[0]
-        label_filename = image_name + '.txt'
-        self.label_filename = os.path.join(
-            self.label_directory, label_filename)
-        if os.path.exists(self.label_filename):
-            with open(self.label_filename) as f:
+        label_filename = self.label_list[self.cur - 1]
+        if os.path.exists(label_filename):
+            with open(label_filename) as f:
                 for (i, line) in enumerate(f):
                     [x1, y1, x2, y2, x3, y3, x4, y4] = [
                         int(t.strip()) for t in line.split()]
@@ -411,7 +420,8 @@ class LabelTool():
             self.load_image()
 
     def save_image(self, event=None):
-        with open(self.label_filename, 'w') as f:
+        label_filename = self.label_list[self.cur - 1]
+        with open(label_filename, 'w') as f:
             for rectangle in self.rectangle_coordinates_list:
                 [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] = rectangle
                 entry = "{} {} {} {} {} {} {} {}\n".format(
@@ -421,10 +431,10 @@ class LabelTool():
 
     def print_main_panel(self, event=None):
         self.main_panel.update()
-        imagepath = self.image_list[self.cur - 1]
-        image_name = os.path.split(imagepath)[-1].split('.')[0]
-        labeled_image_filename = os.path.join(
-            self.label_directory, image_name + '_labeled.jpg')
+        labeled_image_filename = self.label_list[self.cur - 1]
+        labeled_image_filename = labeled_image_filename.replace(
+            '.txt', 
+            '_labeled.jpg')
         print("Printing image to {}".format(labeled_image_filename))
         ps = self.main_panel.postscript(colormode="color")
         img = Image.open(io.BytesIO(ps.encode('utf-8')))
