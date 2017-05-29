@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 Navigate between images using either the `Prev`, `Next` or `Go` button, or using keyboard keys `a` (previous) or `d` (next). Labels are always saved before changing images.
 
-Delete a rectangle by first clicking on it in the right panel, then press either the `Delete` button or the `x` key. Cliking on a rectangle highlights it, so it is easier to locate it.
+Delete a rectangle by first clicking on it in the right panel, then press either the `Delete` button or the `x` key. Clicking on a rectangle highlights it, so it is easier to locate it.
 
 Print the image with labels using either the `Print` button or the `p` key. Labeled images are saved in your directory in `Labels/`. Eg.: `Labels/folder1/ORIGINAL_IMAGE_NAME_labeled.jpg`
 
