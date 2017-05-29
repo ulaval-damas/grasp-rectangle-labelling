@@ -1,4 +1,5 @@
 from tkinter import *
+from tkinter.ttk import *
 import tkinter.messagebox
 from PIL import Image, ImageTk
 import os
@@ -269,8 +270,8 @@ class LabelTool():
                 self.example_list.append(ImageTk.PhotoImage(self.tmp[-1]))
                 self.example_panel_example_labels[i].config(
                     image=self.example_list[-1],
-                    width=SIZE[0],
-                    height=SIZE[1])
+                    width=SIZE[0]) 
+                    #height=SIZE[1]
 
         self.load_image()
         print("{} images loaded from {}".format(self.total, self.category))
@@ -432,6 +433,7 @@ class LabelTool():
 
 if __name__ == '__main__':
     root = Tk()
+    Style().theme_use('alt')
     tool = LabelTool(root)
     root.resizable(width=True, height=True)
     root.mainloop()
